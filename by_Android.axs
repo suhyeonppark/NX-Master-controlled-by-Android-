@@ -23,11 +23,11 @@ PROGRAM_NAME='by_Android'
 (***********************************************************)
 DEFINE_DEVICE
 
-TCPS1    = 0:3:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 3)
-TCPS2    = 0:4:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 4)
-TCPS3    = 0:5:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 5)
-TCPS4    = 0:6:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 6)
-TCPS5    = 0:7:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 7)
+TCP1    = 0:3:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 3)
+TCP2    = 0:4:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 4)
+TCP3    = 0:5:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 5)
+TCP4    = 0:6:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 6)
+TCP5    = 0:7:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 7)
 
 // --- 통합 컨트롤러(5001) 물리 포트. 실제 배선에 맞춰 수정 ---
 dvRELAY  = 6001:1:0    // 릴레이 포트 (채널 1..N)
@@ -50,7 +50,7 @@ dvEXB_IRS = 50002:1:0 //EXB-IRS4
 (*               CONSTANT DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_CONSTANT
-DEV TCPS[] = {TCPS1,TCPS2,TCPS3,TCPS4,TCPS5}
+DEV TCPS[] = {TCP1,TCP2,TCP3,TCP4,TCP5}
 
 integer TCP_PORT      = 6600     // 앱이 접속하는 서버 포트
 integer DEBUG_LOG     = 1        // 1=마스터 콘솔에 송수신 로그 출력
@@ -285,11 +285,11 @@ data_event[TCPS] {
 		// IP_SERVER_OPEN 은 클라이언트가 끊기면 리스닝 소켓도 닫힌다.
 		// 다음 접속을 받으려면 반드시 다시 열어 재무장해야 한다.
 		switch (index) {
-			case 1: { wait 50 open_server(1) }
-			case 2: { wait 50 open_server(2) }
-			case 3: { wait 50 open_server(3) }
-			case 4: { wait 50 open_server(4) }
-			case 5: { wait 50 open_server(5) }
+			case 1: { wait 100 open_server(1) }
+			case 2: { wait 100 open_server(2) }
+			case 3: { wait 100 open_server(3) }
+			case 4: { wait 100 open_server(4) }
+			case 5: { wait 100 open_server(5) }
 		}
 	}
 	onerror: {
@@ -299,11 +299,11 @@ data_event[TCPS] {
 		// dbg("itoa(index),'socket error: ', itoa(data.number), ' - reopening server'")
 		// 에러로 닫힌 경우에도 재무장한다.
 		switch (index) {
-			case 1: { wait 50 open_server(1) }
-			case 2: { wait 50 open_server(2) }
-			case 3: { wait 50 open_server(3) }
-			case 4: { wait 50 open_server(4) }
-			case 5: { wait 50 open_server(5) }
+			case 1: { wait 100 open_server(1) }
+			case 2: { wait 100 open_server(2) }
+			case 3: { wait 100 open_server(3) }
+			case 4: { wait 100 open_server(4) }
+			case 5: { wait 100 open_server(5) }
 		}
 	}
 }
@@ -337,7 +337,7 @@ channel_event[dvIOPorts, 0] {
 	}
 }
 
-(*-------------------- 시리얼 수신 -> 앱 전달 --------------------*)
+(*-------------------- 시리얼 수신 -> 앱 전달 --------------------*)	
 data_event[dvSerialPorts] {
 	string: {
 		integer p
@@ -352,6 +352,14 @@ data_event[dvSerialPorts] {
 (*                   END OF PROGRAM                        *)
 (***********************************************************)
 DEFINE_PROGRAM
+
+
+
+
+
+
+
+
 
 
 
