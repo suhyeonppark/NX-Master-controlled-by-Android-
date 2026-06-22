@@ -121,14 +121,14 @@
 <SalesOrder></SalesOrder>
 <PurchaseOrder></PurchaseOrder>
 <Comments></Comments>
-<System IsActive="true" Platform="Netlinx" Transport="Serial" TransportEx="Serial"><Identifier>by_Android</Identifier>
+<System IsActive="true" Platform="Netlinx" Transport="Serial" TransportEx="TCPIP"><Identifier>by_Android</Identifier>
 <SysID>0</SysID>
 <TransTCPIP>0.0.0.0</TransTCPIP>
 <TransSerial>COM1,115200,8,None,1,None</TransSerial>
-<TransTCPIPEx>192.168.10.170|1319|1|MU-2300 [192.168.10.170]||</TransTCPIPEx>
+<TransTCPIPEx>192.168.10.82|1319|1|MCP-106 [AMXMAB153F]||</TransTCPIPEx>
 <TransSerialEx>COM1|38400|8|None|1|None||</TransSerialEx>
 <TransUSBEx>|||||</TransUSBEx>
-<TransVNMEx>192.168.10.18|1|&lt;Default&gt;</TransVNMEx>
+<TransVNMEx>10.0.0.1|1|&lt;Default&gt;</TransVNMEx>
 <VirtualNetLinxMasterFlag>false</VirtualNetLinxMasterFlag>
 <VNMSystemID>1</VNMSystemID>
 <VNMIPAddress>10.0.0.1</VNMIPAddress>

@@ -1,6 +1,6 @@
 PROGRAM_NAME='by_Android'
 (***********************************************************)
-(*  NX-2200  <->  Android 컨트롤 앱 (nx2200_controller)     *)
+(*    <->  Android 컨트롤 앱 (nx2200_controller)     *)
 (*                                                         *)
 (*  TCP 6600 서버. 앱이 보내는 명령을 파싱해 통합 컨트롤러     *)
 (*  포트(릴레이/IR/시리얼/IO)를 제어하고, 상태를 다시 보낸다.  *)
@@ -23,10 +23,14 @@ PROGRAM_NAME='by_Android'
 (***********************************************************)
 DEFINE_DEVICE
 
-dvTCP    = 0:3:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 3)
+TCPS1    = 0:3:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 3)
+TCPS2    = 0:4:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 4)
+TCPS3    = 0:5:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 5)
+TCPS4    = 0:6:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 6)
+TCPS5    = 0:7:0        // TCP 서버용 로컬 IP 소켓 (논리 포트 7)
 
 // --- 통합 컨트롤러(5001) 물리 포트. 실제 배선에 맞춰 수정 ---
-dvRELAY  = 5001:21:0    // 릴레이 포트 (채널 1..N)
+dvRELAY  = 6001:1:0    // 릴레이 포트 (채널 1..N)
 dvIO_1   = 5001:22:0    // I/O 포트 (채널 1..N)
 
 dvSER_1  = 5001:1:0     // 시리얼(COM) 포트 1
@@ -39,10 +43,14 @@ dvIR_2   = 5001:12:0
 dvIR_3   = 5001:13:0
 dvIR_4   = 5001:14:0
 
+dvEXB_REL = 50001:1:0  //EXB-REL8
+dvEXB_IRS = 50002:1:0 //EXB-IRS4
+
 (***********************************************************)
 (*               CONSTANT DEFINITIONS GO BELOW             *)
 (***********************************************************)
 DEFINE_CONSTANT
+DEV TCPS[] = {TCPS1,TCPS2,TCPS3,TCPS4,TCPS5}
 
 integer TCP_PORT      = 6600     // 앱이 접속하는 서버 포트
 integer DEBUG_LOG     = 1        // 1=마스터 콘솔에 송수신 로그 출력
@@ -63,9 +71,9 @@ dev dvIRPorts[]     = { dvIR_1,  dvIR_2,  dvIR_3,  dvIR_4  }
 dev dvIOPorts[]     = { dvIO_1 }
 
 // 수신 누적 버퍼. CREATE_BUFFER 로 들어오는 바이트가 계속 쌓인다.
-volatile char cRxBuffer[4000]
+volatile char cRxBuffer[5][4000]
 
-volatile integer bClientOnline    // 앱 소켓 연결 여부
+volatile integer bClientOnline[5]    // 앱 소켓 연결 여부
 
 (***********************************************************)
 (*        SUBROUTINE/FUNCTION DEFINITIONS GO BELOW         *)
@@ -80,7 +88,7 @@ define_function dbg(char msg[]) {
 // IR/Serial 겸용 포트를 IR 모드로 명시 설정.
 // (이 포트들은 시리얼로도 쓸 수 있어 기본값을 신뢰하지 않고 강제한다.)
 define_function init_ir_ports() {
-	stack_var integer i
+	integer i
 	for (i = 1; i <= length_array(dvIRPorts); i++) {
 		send_command dvIRPorts[i], "'SET MODE IR'"
 	}
@@ -88,22 +96,20 @@ define_function init_ir_ports() {
 
 // 서버 오픈. IP_SERVER_OPEN 은 한 번 열면 클라이언트가 끊겨도 계속
 // 리스닝을 유지하므로 끊길 때마다 닫고 다시 열 필요가 없다.
-define_function open_server() {
-	ip_server_open(dvTCP.PORT, TCP_PORT, IP_TCP)
+define_function open_server(integer index) {
+	ip_server_open(TCPS[index].PORT, TCP_PORT, IP_TCP)
 	dbg("'server listening on tcp ', itoa(TCP_PORT)")
 }
 
 // 앱으로 한 줄 피드백 전송 (자동으로 CRLF 부착)
 define_function send_feedback(char line[]) {
-	if (bClientOnline) {
-		send_string dvTCP, "line, CRLF"
-		dbg("'TX << ', line")
-	}
+	send_string TCPS, "line, CRLF"
+	dbg("'TX << ', line")
 }
 
 // dev 배열에서 d 의 1-base 인덱스 반환 (없으면 0)
 define_function integer dev_index(dev list[], dev d) {
-	stack_var integer i
+	integer i
 	for (i = 1; i <= length_array(list); i++) {
 		if (list[i] == d) {
 			return i
@@ -116,8 +122,8 @@ define_function integer dev_index(dev list[], dev d) {
 
 // args = "<ch>/<value>"
 define_function do_relay(char args[]) {
-	stack_var char work[64]
-	stack_var integer ch, val
+	char work[64]
+	integer ch, val
 	work = args
 	ch  = atoi(remove_string(work, '/', 1))   // "3/" -> 3, work="1"
 	val = atoi(work)
@@ -132,8 +138,8 @@ define_function do_relay(char args[]) {
 
 // args = "<ir_port>/<ch>"
 define_function do_ir(char args[]) {
-	stack_var char work[64]
-	stack_var integer port, ch
+	char work[64]
+	integer port, ch
 	work = args
 	port = atoi(remove_string(work, '/', 1))
 	ch   = atoi(work)
@@ -143,8 +149,8 @@ define_function do_ir(char args[]) {
 
 // args = "<port>/<message>"  (message 안에 '/' 공백 포함 가능)
 define_function do_serial(char args[]) {
-	stack_var char work[1024]
-	stack_var integer port
+	char work[1024]
+	integer port
 	work = args
 	port = atoi(remove_string(work, '/', 1))   // "1/" 제거, work=메시지 전체
 	if (port < 1 || port > length_array(dvSerialPorts)) { return }
@@ -153,8 +159,8 @@ define_function do_serial(char args[]) {
 
 // args = "<port>/<ch>/<value>"
 define_function do_io(char args[]) {
-	stack_var char work[64]
-	stack_var integer port, ch, val
+	char work[64]
+	integer port, ch, val
 	work = args
 	port = atoi(remove_string(work, '/', 1))
 	ch   = atoi(remove_string(work, '/', 1))
@@ -172,8 +178,8 @@ define_function do_io(char args[]) {
 
 // line: CRLF 가 제거된 한 줄. 예) "set/relay/3/1"
 define_function process_line(char line[]) {
-	stack_var char work[1024]
-	stack_var char cmd[16]
+	char work[1024]
+	char cmd[16]
 	
 	if (left_string(line, 4) != 'set/') {
 		return                       // 'set/' 로 시작하지 않으면 무시
@@ -200,11 +206,11 @@ define_function process_line(char line[]) {
 
 // 누적 버퍼에서 완성된(LF로 끝나는) 줄을 순서대로 모두 처리.
 // CRLF 가 기본이지만 끝의 CR/LF 를 벗겨내 LF 단독도 견딘다.
-define_function process_rx_buffer() {
-	stack_var char line[1024]
+define_function process_rx_buffer(integer idx) {
+	char line[1024]
 	
-	while (find_string(cRxBuffer, "$0A", 1)) {
-		line = remove_string(cRxBuffer, "$0A", 1)   // LF 까지(포함) 잘라낸다
+	while (find_string(cRxBuffer[idx], "$0A", 1)) {
+		line = remove_string(cRxBuffer[idx], "$0A", 1)   // LF 까지(포함) 잘라낸다
 		// 끝의 LF / CR 제거
 		while (length_string(line) &&
 			((line[length_string(line)] == $0A) ||
@@ -217,15 +223,15 @@ define_function process_rx_buffer() {
 	}
 	
 	// 비정상적으로 줄바꿈 없이 버퍼만 차오르는 경우 폭주 방지
-	if (length_string(cRxBuffer) > 2000) {
+	if (length_string(cRxBuffer[idx]) > 2000) {
 		dbg("'rx buffer overflow, clearing'")
-		cRxBuffer = ''
+		clear_buffer cRxBuffer[idx]
 	}
 }
 
 // 앱 접속 시 현재 릴레이/IO 상태를 모두 내려보내 동기화
 define_function sync_states() {
-	stack_var integer p, ch
+	integer p, ch
 	for (ch = 1; ch <= NUM_RELAY; ch++) {
 		send_feedback("'relay/', itoa(ch), '/', itoa(type_cast([dvRELAY, ch]))")
 	}
@@ -239,43 +245,68 @@ define_function sync_states() {
 (***********************************************************)
 (*                STARTUP CODE GOES BELOW                  *)
 (***********************************************************)
-DEFINE_START
-
-create_buffer dvTCP, cRxBuffer      // 수신 바이트를 cRxBuffer 에 자동 누적
-open_server()
-
-wait 50 {
-	init_ir_ports()                 // IR 포트 모드 설정 (포트 online 후)
+DEFINE_START{
+	integer i
+	for(i = 1; i <= 5; i++) {
+		create_buffer TCPS[i], cRxBuffer[i]      // 수신 바이트를 cRxBuffer 에 자동 누적
+		clear_buffer cRxBuffer[i]
+		open_server(i)
+	}
+	wait 50 {
+		init_ir_ports()                 // IR 포트 모드 설정 (포트 online 후)
+	}
 }
-
 (***********************************************************)
 (*                THE EVENTS GO BELOW                      *)
 (***********************************************************)
 DEFINE_EVENT
 
 (*-------------------- TCP 서버 소켓 --------------------*)
-data_event[dvTCP] {
+data_event[TCPS] {
 	online: {
-		bClientOnline = true
-		dbg("'client connected'")
-		cRxBuffer = ''               // 새 연결마다 버퍼 초기화
+		integer index
+		index = get_last(TCPS)
+		bClientOnline[index] = true
+		dbg("itoa(index),'client connected'")
+		clear_buffer cRxBuffer[index]
 		sync_states()                // 현재 상태 동기화
 	}
 	string: {
 		// create_buffer 가 이미 cRxBuffer 에 쌓아 두었다. 줄 단위로 처리.
-		process_rx_buffer()
+		integer index
+		index = get_last(TCPS)
+		process_rx_buffer(index)
 	}
 	offline: {
-		bClientOnline = false
-		dbg("'client disconnected (server still listening)'")
-		// 서버는 계속 리스닝 중이므로 재오픈하지 않는다.
+		integer index
+		index = get_last(TCPS)
+		bClientOnline[index] = false
+		// dbg("itoa(index),'client disconnected, reopening server'")
+		// IP_SERVER_OPEN 은 클라이언트가 끊기면 리스닝 소켓도 닫힌다.
+		// 다음 접속을 받으려면 반드시 다시 열어 재무장해야 한다.
+		switch (index) {
+			case 1: { wait 50 open_server(1) }
+			case 2: { wait 50 open_server(2) }
+			case 3: { wait 50 open_server(3) }
+			case 4: { wait 50 open_server(4) }
+			case 5: { wait 50 open_server(5) }
+		}
 	}
 	onerror: {
-		bClientOnline = false
-		dbg("'socket error: ', itoa(data.number)")
+		integer index
+		index = get_last(TCPS)
+		bClientOnline[index] = false
+		// dbg("itoa(index),'socket error: ', itoa(data.number), ' - reopening server'")
+		// 에러로 닫힌 경우에도 재무장한다.
+		switch (index) {
+			case 1: { wait 50 open_server(1) }
+			case 2: { wait 50 open_server(2) }
+			case 3: { wait 50 open_server(3) }
+			case 4: { wait 50 open_server(4) }
+			case 5: { wait 50 open_server(5) }
+		}
 	}
 }
-
 
 (*-------------------- 릴레이 상태 피드백 --------------------*)
 // 채널 0 = 와일드카드: dvRELAY 의 모든 채널 변화를 잡는다.
@@ -291,14 +322,14 @@ channel_event[dvRELAY, 0] {
 (*-------------------- I/O 상태 피드백 --------------------*)
 channel_event[dvIOPorts, 0] {
 	on: {
-		stack_var integer p
+		integer p
 		p = dev_index(dvIOPorts, channel.device)
 		if (p) {
 			send_feedback("'io/', itoa(p), '/', itoa(channel.channel), '/1'")
 		}
 	}
 	off: {
-		stack_var integer p
+		integer p
 		p = dev_index(dvIOPorts, channel.device)
 		if (p) {
 			send_feedback("'io/', itoa(p), '/', itoa(channel.channel), '/0'")
@@ -309,7 +340,7 @@ channel_event[dvIOPorts, 0] {
 (*-------------------- 시리얼 수신 -> 앱 전달 --------------------*)
 data_event[dvSerialPorts] {
 	string: {
-		stack_var integer p
+		integer p
 		p = dev_index(dvSerialPorts, data.device)
 		if (p) {
 			send_feedback("'serial/', itoa(p), '/', data.text")
@@ -321,5 +352,42 @@ data_event[dvSerialPorts] {
 (*                   END OF PROGRAM                        *)
 (***********************************************************)
 DEFINE_PROGRAM
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 

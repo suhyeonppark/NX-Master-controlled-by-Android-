@@ -2,3 +2,7 @@
 *.tko
 *.tkn
 *.src
+
+# 로컬 도구/임시 파일
+.claude/
+null
