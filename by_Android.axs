@@ -285,11 +285,11 @@ data_event[TCPS] {
 		// IP_SERVER_OPEN 은 클라이언트가 끊기면 리스닝 소켓도 닫힌다.
 		// 다음 접속을 받으려면 반드시 다시 열어 재무장해야 한다.
 		switch (index) {
-			case 1: { wait 100 open_server(1) }
-			case 2: { wait 100 open_server(2) }
-			case 3: { wait 100 open_server(3) }
-			case 4: { wait 100 open_server(4) }
-			case 5: { wait 100 open_server(5) }
+			case 1: { wait 50 open_server(1) }
+			case 2: { wait 50 open_server(2) }
+			case 3: { wait 50 open_server(3) }
+			case 4: { wait 50 open_server(4) }
+			case 5: { wait 50 open_server(5) }
 		}
 	}
 	onerror: {
@@ -299,11 +299,11 @@ data_event[TCPS] {
 		// dbg("itoa(index),'socket error: ', itoa(data.number), ' - reopening server'")
 		// 에러로 닫힌 경우에도 재무장한다.
 		switch (index) {
-			case 1: { wait 100 open_server(1) }
-			case 2: { wait 100 open_server(2) }
-			case 3: { wait 100 open_server(3) }
-			case 4: { wait 100 open_server(4) }
-			case 5: { wait 100 open_server(5) }
+			case 1: { wait 50 open_server(1) }
+			case 2: { wait 50 open_server(2) }
+			case 3: { wait 50 open_server(3) }
+			case 4: { wait 50 open_server(4) }
+			case 5: { wait 50 open_server(5) }
 		}
 	}
 }
@@ -352,10 +352,6 @@ data_event[dvSerialPorts] {
 (*                   END OF PROGRAM                        *)
 (***********************************************************)
 DEFINE_PROGRAM
-
-
-
-
 
 
 
